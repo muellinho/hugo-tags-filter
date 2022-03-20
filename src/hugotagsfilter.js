@@ -205,8 +205,27 @@ class HugoTagsFilter {
       var visibility = 0;
       /* show item only if visibility is true for all filters */
       for ( var j = 0; j < this.FILTERS.length; j++ ) {
-        if ( this.checkVisibility(this.FILTERS[j]['selected'], this.filterItems[i].getAttribute(this.FILTERS[j]['attrName'])) ) {
-          visibility++;
+        /* TODO: find better name for 'filterAnd' */
+        if (this.FILTERS[j]['filterAnd']) {
+          /* Have switch, and enabled */
+          /* If no selection => select all */
+          var selected = this.FILTERS[j]['selected'];
+          if (this.FILTERS[j]['selected'].length === 0) {
+            selected = [];
+
+            var fv = document.getElementsByClassName(this.FILTERS[j]['buttonClass']);
+            for( var k = 0; k < fv.length; k++ ){
+              var v = fv[k].id.replace(this.FILTERS[j]["prefix"], '');
+              selected.push(v);
+            }
+          }
+          if ( this.checkVisibilityAnd(selected, this.filterItems[i].getAttribute(this.FILTERS[j]['attrName'])) ) {
+            visibility++;
+          }
+        } else {
+          if ( this.checkVisibility(this.FILTERS[j]['selected'], this.filterItems[i].getAttribute(this.FILTERS[j]['attrName'])) ) {
+            visibility++;
+          }
         }
       }
       /* Then check if "show" class should be applied */
@@ -251,7 +270,25 @@ class HugoTagsFilter {
       return true 
     }
   }
-  
+  /**
+  * checkVisibilityAnd - Tests if attributes are included in list.
+  */ 
+  checkVisibilityAnd(list, dataAttr) {
+    /* Returns TRUE if list is empty or all attributes in list */   
+    var found = 0;
+    if (list.length > 0) {
+      for(var v = 0; v < list.length; v++){
+        var arr = dataAttr.split(" ")
+                          .filter(function(el){return el.length > 0});
+        if(arr.indexOf(list[v]) >=0 ) {
+          found++;
+        }
+      }
+      return (found === list.length)
+    } else {
+      return true 
+    }
+  }
   addClassIfMissing(el, cn) {
     if(!el.classList.contains(cn)) {
       el.classList.add(cn);
@@ -262,6 +299,45 @@ class HugoTagsFilter {
     if(el.classList.contains(cn)) {
       el.classList.remove(cn)
     } 
+  }
+
+  /* 2-REC: "AND" filtering */
+  toggleSwitch(checkbox, filter) {
+    for( var i = 0; i < this.FILTERS.length; i++) {
+      if(filter) {
+        if(this.FILTERS[i]['name'] === filter) {
+          this.FILTERS[i]['filterAnd'] = checkbox.checked;
+          this.updateSwitchLabels(checkbox);
+        }
+      } else {
+        this.FILTERS[i]['filterAnd'] = checkbox.checked;
+        this.updateSwitchLabels(checkbox);
+      }
+    }
+    this.showCheck(filter)
+  }
+
+  updateSwitchLabels(checkbox) {
+    var switchId = checkbox.id;
+
+    /* TODO(2-REC): Add "And"+"Or" labels as global parameters for HTF (e.g.: "andSuffix"+"orSuffix") */
+    var andLabel = document.getElementById((switchId + "And"));
+    var orLabel = document.getElementById((switchId + "Or"));
+    if(checkbox.checked){
+      if (andLabel) {
+        this.addClassIfMissing(andLabel, this.activeButtonClass);
+      }
+      if (orLabel) {
+        this.delClassIfPresent(orLabel, this.activeButtonClass);
+      }
+    } else {
+      if (andLabel) {
+        this.delClassIfPresent(andLabel, this.activeButtonClass);
+      }
+      if (orLabel) {
+        this.addClassIfMissing(orLabel, this.activeButtonClass);
+      }
+    }
   }
 }
 
