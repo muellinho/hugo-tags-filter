@@ -26,6 +26,7 @@ class HugoTagsFilter {
     
     this.FILTERS = (config && config.filters) ? config.filters : defaultFilters;
     this.showItemClass = (config && config.showItemClass) ? config.showItemClass : "tf-show";
+    this.showToggleLabelClass = (config && config.showToggleLabelClass) ? config.showToggleLabelClass : "tf-show";
     this.activeButtonClass = (config && config.activeButtonClass) ? config.activeButtonClass : "active";
     this.filterItemClass = (config && config.filterItemClass) ? config.filterItemClass : "tf-filter-item";
     this.counterSelector = (config && config.counterSelector) ? config.counterSelector : "selectedItemCount";
@@ -54,11 +55,24 @@ class HugoTagsFilter {
         this.filterValues[this.FILTERS[i]['name']][v] = {count:0, selected:0};
       }
     }
-    this.showCheck(this.FILTERS[0]['name'], true);
-    for( var i = 1; i < this.FILTERS.length; i++) {
-      this.showCheck(this.FILTERS[i]['name'], false);
-    }
+    // actually initialize the counts...
+    this.filterValues = this.initFilterCount(this.filterValues, true);
 
+    // this.showCheck(this.FILTERS[0]['name']);
+    for( var i = 0; i < this.FILTERS.length; i++) {
+      this.showCheck(this.FILTERS[i]['name'], false);
+      
+      const checkbox = document.querySelector(this.FILTERS[i]['conditionToggleSelector']);
+      const andLabel = document.getElementById((checkbox.id + "And"));
+      const orLabel = document.getElementById((checkbox.id + "Or"));
+
+      if(checkbox.checked && andLabel){
+        this.addClassIfMissing(andLabel, this.showToggleLabelClass)
+      }
+      if(!checkbox.checked && orLabel){
+        this.addClassIfMissing(orLabel, this.showToggleLabelClass)
+      }
+    }
   }
   
   initFilterCount(fvc, isInitial){
@@ -326,16 +340,20 @@ class HugoTagsFilter {
     if(checkbox.checked){
       if (andLabel) {
         this.addClassIfMissing(andLabel, this.activeButtonClass);
+        this.addClassIfMissing(andLabel, this.showToggleLabelClass)
       }
       if (orLabel) {
         this.delClassIfPresent(orLabel, this.activeButtonClass);
+        this.delClassIfPresent(orLabel, this.showToggleLabelClass)
       }
     } else {
       if (andLabel) {
         this.delClassIfPresent(andLabel, this.activeButtonClass);
+        this.delClassIfPresent(andLabel, this.showToggleLabelClass)
       }
       if (orLabel) {
         this.addClassIfMissing(orLabel, this.activeButtonClass);
+        this.addClassIfMissing(orLabel, this.showToggleLabelClass)
       }
     }
   }
