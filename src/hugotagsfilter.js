@@ -26,6 +26,7 @@ class HugoTagsFilter {
     
     this.FILTERS = (config && config.filters) ? config.filters : defaultFilters;
     this.showItemClass = (config && config.showItemClass) ? config.showItemClass : "tf-show";
+    this.showToggleLabelClass = (config && config.showToggleLabelClass) ? config.showToggleLabelClass : "tf-show";
     this.activeButtonClass = (config && config.activeButtonClass) ? config.activeButtonClass : "active";
     this.filterItemClass = (config && config.filterItemClass) ? config.filterItemClass : "tf-filter-item";
     this.counterSelector = (config && config.counterSelector) ? config.counterSelector : "selectedItemCount";
@@ -54,9 +55,24 @@ class HugoTagsFilter {
         this.filterValues[this.FILTERS[i]['name']][v] = {count:0, selected:0};
       }
     }
-    this.showCheck(this.FILTERS[0]['name'], true);
+    // actually initialize the counts...
+    this.filterValues = this.initFilterCount(this.filterValues, true);
 
+    // this.showCheck(this.FILTERS[0]['name']);
+    for( var i = 0; i < this.FILTERS.length; i++) {
+      this.showCheck(this.FILTERS[i]['name'], false);
+      
+      const checkbox = document.querySelector(this.FILTERS[i]['conditionToggleSelector']);
+      const andLabel = document.getElementById((checkbox.id + "And"));
+      const orLabel = document.getElementById((checkbox.id + "Or"));
 
+      if(checkbox.checked && andLabel){
+        this.addClassIfMissing(andLabel, this.showToggleLabelClass)
+      }
+      if(!checkbox.checked && orLabel){
+        this.addClassIfMissing(orLabel, this.showToggleLabelClass)
+      }
+    }
   }
   
   initFilterCount(fvc, isInitial){
@@ -157,15 +173,16 @@ class HugoTagsFilter {
     
     for ( var i = 0; i < this.FILTERS.length; i++ ) {
       if ( this.FILTERS[i]['prefix'] === tagType ) {
-        if ( this.FILTERS[i]['selected'].indexOf(tag) >= 0 ) { 
+        var index = this.FILTERS[i]['selected'].indexOf(tag);
+        if ( index >= 0 ) {
           /* already selected, deselect tag */
-          this.FILTERS[i]['selected'].splice(tag,1);
+          this.FILTERS[i]['selected'].splice(index, 1);
           this.delClassIfPresent(selectedBtn, this.activeButtonClass);
-        } else { 
+        } else {
           /* add tag to selected list */
           this.FILTERS[i]['selected'].push(tag);
           this.addClassIfMissing(selectedBtn, this.activeButtonClass);
-        } 
+        }
         this.delClassIfPresent(document.querySelector(this.FILTERS[i]['allSelector']), this.activeButtonClass);
         this.showCheck(this.FILTERS[i]['name']);
       }
@@ -188,6 +205,7 @@ class HugoTagsFilter {
             this.delClassIfPresent(iBtns[j], this.activeButtonClass)
           }
           this.addClassIfMissing(document.querySelector(this.FILTERS[i]['allSelector']), this.activeButtonClass)
+          this.FILTERS[i]['selected'] = [];
         }
       } 
     }
@@ -201,8 +219,27 @@ class HugoTagsFilter {
       var visibility = 0;
       /* show item only if visibility is true for all filters */
       for ( var j = 0; j < this.FILTERS.length; j++ ) {
-        if ( this.checkVisibility(this.FILTERS[j]['selected'], this.filterItems[i].getAttribute(this.FILTERS[j]['attrName'])) ) {
-          visibility++;
+        /* TODO: find better name for 'filterAnd' */
+        if (this.FILTERS[j]['filterAnd']) {
+          /* Have switch, and enabled */
+          /* If no selection => select all */
+          var selected = this.FILTERS[j]['selected'];
+          if (this.FILTERS[j]['selected'].length === 0) {
+            selected = [];
+
+            var fv = document.getElementsByClassName(this.FILTERS[j]['buttonClass']);
+            for( var k = 0; k < fv.length; k++ ){
+              var v = fv[k].id.replace(this.FILTERS[j]["prefix"], '');
+              selected.push(v);
+            }
+          }
+          if ( this.checkVisibilityAnd(selected, this.filterItems[i].getAttribute(this.FILTERS[j]['attrName'])) ) {
+            visibility++;
+          }
+        } else {
+          if ( this.checkVisibility(this.FILTERS[j]['selected'], this.filterItems[i].getAttribute(this.FILTERS[j]['attrName'])) ) {
+            visibility++;
+          }
         }
       }
       /* Then check if "show" class should be applied */
@@ -247,7 +284,25 @@ class HugoTagsFilter {
       return true 
     }
   }
-  
+  /**
+  * checkVisibilityAnd - Tests if attributes are included in list.
+  */ 
+  checkVisibilityAnd(list, dataAttr) {
+    /* Returns TRUE if list is empty or all attributes in list */   
+    var found = 0;
+    if (list.length > 0) {
+      for(var v = 0; v < list.length; v++){
+        var arr = dataAttr.split(" ")
+                          .filter(function(el){return el.length > 0});
+        if(arr.indexOf(list[v]) >=0 ) {
+          found++;
+        }
+      }
+      return (found === list.length)
+    } else {
+      return true 
+    }
+  }
   addClassIfMissing(el, cn) {
     if(!el.classList.contains(cn)) {
       el.classList.add(cn);
@@ -258,6 +313,49 @@ class HugoTagsFilter {
     if(el.classList.contains(cn)) {
       el.classList.remove(cn)
     } 
+  }
+
+  /* 2-REC: "AND" filtering */
+  toggleSwitch(checkbox, filter) {
+    for( var i = 0; i < this.FILTERS.length; i++) {
+      if(filter) {
+        if(this.FILTERS[i]['name'] === filter) {
+          this.FILTERS[i]['filterAnd'] = checkbox.checked;
+          this.updateSwitchLabels(checkbox);
+        }
+      } else {
+        this.FILTERS[i]['filterAnd'] = checkbox.checked;
+        this.updateSwitchLabels(checkbox);
+      }
+    }
+    this.showCheck(filter)
+  }
+
+  updateSwitchLabels(checkbox) {
+    var switchId = checkbox.id;
+
+    /* TODO(2-REC): Add "And"+"Or" labels as global parameters for HTF (e.g.: "andSuffix"+"orSuffix") */
+    var andLabel = document.getElementById((switchId + "And"));
+    var orLabel = document.getElementById((switchId + "Or"));
+    if(checkbox.checked){
+      if (andLabel) {
+        this.addClassIfMissing(andLabel, this.activeButtonClass);
+        this.addClassIfMissing(andLabel, this.showToggleLabelClass)
+      }
+      if (orLabel) {
+        this.delClassIfPresent(orLabel, this.activeButtonClass);
+        this.delClassIfPresent(orLabel, this.showToggleLabelClass)
+      }
+    } else {
+      if (andLabel) {
+        this.delClassIfPresent(andLabel, this.activeButtonClass);
+        this.delClassIfPresent(andLabel, this.showToggleLabelClass)
+      }
+      if (orLabel) {
+        this.addClassIfMissing(orLabel, this.activeButtonClass);
+        this.addClassIfMissing(orLabel, this.showToggleLabelClass)
+      }
+    }
   }
 }
 
